@@ -193,42 +193,6 @@ tab1, tab2, tab3, tab4 = st.tabs(
 # TAB 1 - Alarm Profile
 # ---------------------------------------------------------------
 with tab1:
-    st.markdown("##### Alarms per day across the selected time frame")
-    daily = (dff.assign(d=pd.to_datetime(dff["active_time"]).dt.normalize())
-                .groupby("d").size())
-    # Fill days with zero alarms so gaps are visible rather than interpolated
-    full_range = pd.date_range(start=start_date, end=end_date, freq="D")
-    daily = daily.reindex(full_range, fill_value=0).reset_index()
-    daily.columns = ["date", "alarms"]
-    if len(daily) >= 7:
-        daily["7-day average"] = daily["alarms"].rolling(7, min_periods=1).mean().round(1)
-
-    fig_daily = px.line(daily, x="date", y="alarms", markers=len(daily) <= 62,
-                        color_discrete_sequence=[PALETTE[0]],
-                        labels={"alarms": "Alarms", "date": "Date"})
-    if "7-day average" in daily.columns:
-        fig_daily.add_scatter(x=daily["date"], y=daily["7-day average"],
-                              mode="lines", name="7-day average",
-                              line=dict(color=PALETTE[2], width=3, dash="dot"))
-    fig_daily.update_traces(selector=dict(name="alarms"), name="Daily count")
-    fig_daily.update_layout(plot_bgcolor="white", paper_bgcolor="white",
-                            xaxis_title="Date", yaxis_title="Alarm Count",
-                            hovermode="x unified", showlegend=True,
-                            legend=dict(orientation="h", yanchor="bottom",
-                                        y=1.02, xanchor="right", x=1),
-                            margin=dict(l=20, r=20, t=40, b=40))
-    st.plotly_chart(fig_daily, width="stretch")
-
-    d1, d2, d3, d4 = st.columns(4)
-    d1.metric("Busiest day", f"{daily['alarms'].max():,.0f}",
-              str(daily.loc[daily['alarms'].idxmax(), 'date'].date()))
-    d2.metric("Quietest day", f"{daily['alarms'].min():,.0f}",
-              str(daily.loc[daily['alarms'].idxmin(), 'date'].date()))
-    d3.metric("Daily average", f"{daily['alarms'].mean():,.1f}")
-    d4.metric("Days with zero alarms", f"{int((daily['alarms'] == 0).sum()):,}")
-
-    st.markdown("---")
-
     a, b = st.columns(2)
     with a:
         st.plotly_chart(count_bar(dff, "pad", "Alarms by Well Pad", horizontal=True),
