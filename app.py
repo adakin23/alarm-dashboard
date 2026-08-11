@@ -145,6 +145,14 @@ scope = st.sidebar.radio(
          "to the on-call operator. Still-active alarms are included.",
 )
 
+nuisance_view = st.sidebar.radio(
+    "Nuisance view",
+    options=["All alarms", "Nuisance only", "Non-nuisance only",
+             "Fleeting nuisance only", "Standing nuisance only"],
+    help="Filter to nuisance alarms (using the current parameter settings). "
+         "Fleeting = short and repetitive; standing = long-lived, repetitive SMS senders.",
+)
+
 
 def build_options(series):
     return ["All"] + sorted(series.dropna().astype(str).unique().tolist())
@@ -198,6 +206,15 @@ dff = df[(df["active_date"] >= start_date) & (df["active_date"] <= end_date)]
 if scope.startswith("SMS"):
     dff = dff[dff["sms_notification"]]
 
+if nuisance_view == "Nuisance only":
+    dff = dff[dff["is_nuisance"]]
+elif nuisance_view == "Non-nuisance only":
+    dff = dff[~dff["is_nuisance"]]
+elif nuisance_view == "Fleeting nuisance only":
+    dff = dff[dff["nuisance_class"] == "Fleeting nuisance"]
+elif nuisance_view == "Standing nuisance only":
+    dff = dff[dff["nuisance_class"] == "Standing nuisance"]
+
 def apply_filter(data, col, selected):
     """Filter on any specific values chosen. 'All' is ignored, so the user does
     not have to remove it before a selection takes effect. If nothing but 'All'
@@ -219,8 +236,9 @@ if dff.empty:
 
 n_days = max((end_date - start_date).days + 1, 1)
 
+view_note = "" if nuisance_view == "All alarms" else f" · **{nuisance_view}**"
 st.caption(
-    f"Showing **{scope}** from **{start_date}** to **{end_date}** "
+    f"Showing **{scope}**{view_note} from **{start_date}** to **{end_date}** "
     f"({n_days} days) - {len(dff):,} alarm occurrences."
 )
 
