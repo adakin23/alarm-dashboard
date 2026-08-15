@@ -178,20 +178,22 @@ with st.sidebar.expander("⚙️ Adjust Nuisance Parameters", expanded=False):
         "default values are the definition used in our analysis."
     )
     fleeting_secs = st.slider(
-        "Fleeting: clears in under (seconds)", 5, 120, 60, step=5,
+        "Fleeting — clears in under N seconds", 5, 120, 60, step=5,
         help="A fleeting alarm resolves faster than this.")
     fleeting_freq = st.slider(
-        "Fleeting: tag fires more than (times)", 10, 100, 50, step=5,
-        help="…and the tag fires more than this many times across 6 months.")
+        "Fleeting — tag fires more than N times / 6 months", 10, 100, 50, step=5,
+        help="…and the tag fires more than this many times across the 6-month window.")
     standing_freq = st.slider(
-        "Standing: tag sends more than (SMS)", 10, 100, 50, step=5,
-        help="A standing nuisance tag sends more than this many SMS alarms.")
+        "Standing — tag sends more than N texts / 6 months", 10, 100, 50, step=5,
+        help="A standing nuisance tag sends more than this many SMS alarms "
+             "across the 6-month window.")
 
     st.markdown(
         f"**Current definition**  \n"
-        f"• *Fleeting nuisance* — clears under **{fleeting_secs}s** "
-        f"and tag fires **>{fleeting_freq}×**  \n"
-        f"• *Standing nuisance* — SMS-eligible and tag sends **>{standing_freq}** texts"
+        f"• *Fleeting nuisance* — clears in under **{fleeting_secs} seconds** "
+        f"and the tag fires **more than {fleeting_freq}× / 6 months**  \n"
+        f"• *Standing nuisance* — SMS-eligible and the tag sends "
+        f"**more than {standing_freq} texts / 6 months**"
     )
 
 # Apply the classification globally with the chosen thresholds
@@ -467,6 +469,25 @@ with tab3:
     )
 
     top_n = st.slider("Number of alarm tags to show", 5, 40, 15, step=5)
+
+    # --- RQ3 overlap statistic (computed globally, not filtered) ---
+    # Of the tags generating the most SMS notifications, how many are nuisance?
+    sms_df = df[df["sms_notification"]]
+    if not sms_df.empty:
+        sms_rank = sms_df.groupby("alarm_tag").size().sort_values(ascending=False)
+        top_sms_tags = sms_rank.head(top_n).index
+        tag_is_nuis = df.groupby("alarm_tag")["is_nuisance"].max()
+        n_overlap = int(sum(bool(tag_is_nuis.get(t, False)) for t in top_sms_tags))
+        n_top = len(top_sms_tags)
+        pct = 100 * n_overlap / n_top if n_top else 0
+        st.success(
+            f"**RQ3 — SMS ↔ nuisance overlap:** "
+            f"**{n_overlap} of the top {n_top}** SMS-generating alarm tags are flagged "
+            f"as nuisance ({pct:.0f}%). The alarms driving the notification load are "
+            f"{'almost entirely' if pct >= 80 else 'substantially'} the same "
+            f"repetitive, non-actionable alarms identified as nuisance — so tightening "
+            f"the notification list targets the noise directly."
+        )
 
     ranked = (dff.groupby("alarm_tag")
                 .agg(alarms=("occurrence_id", "count"),
